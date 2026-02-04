@@ -1,0 +1,38 @@
+# MediaMTX configuration for Pi Zero camera streaming
+
+# RTSP server settings
+rtspAddress: :8554
+rtspEncryption: "no"
+rtspServerKey: server.key
+rtspServerCert: server.crt
+
+# HLS settings (for web viewing if needed)
+hlsAddress: :8889
+hlsEncryption: no
+hlsServerKey: server.key
+hlsServerCert: server.crt
+hlsAlwaysRemux: no
+hlsVariant: lowLatency
+hlsSegmentCount: 7
+hlsSegmentDuration: 1s
+hlsPartDuration: 200ms
+hlsSegmentMaxSize: 50M
+
+# WebRTC settings
+webrtcAddress: :8888
+webrtcEncryption: no
+webrtcServerKey: server.key
+webrtcServerCert: server.crt
+
+# Performance settings optimized for Pi Zero
+readTimeout: 10s
+writeTimeout: 10s
+readBufferCount: 512
+
+# Path configuration
+paths:
+  camera:
+    # This path will receive the stream from the camera-streamer service
+    # Accessible at rtsp://<PI_IP>:8554/camera
+    runOnInit: echo "Camera stream initialized"
+    runOnDemand: echo "Camera stream requested"

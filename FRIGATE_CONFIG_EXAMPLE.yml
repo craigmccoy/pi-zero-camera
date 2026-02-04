@@ -1,0 +1,100 @@
+# Example Frigate configuration for Pi Zero camera
+# Add this to your main Frigate server's config.yml
+
+mqtt:
+  enabled: True
+  host: 192.168.1.50  # Your MQTT broker IP
+
+detectors:
+  coral:
+    type: edgetpu
+    device: usb
+
+cameras:
+  # First Pi Zero Camera
+  pi_camera_living_room:
+    enabled: True
+    ffmpeg:
+      inputs:
+        - path: rtsp://192.168.1.100:8554/camera  # Replace with your Pi Zero IP
+          roles:
+            - detect
+            - record
+      output_args:
+        record: preset-record-generic-audio-copy
+    
+    detect:
+      width: 1280
+      height: 720
+      fps: 15
+    
+    record:
+      enabled: True
+      retain:
+        days: 7
+        mode: motion
+      events:
+        retain:
+          default: 14
+          mode: motion
+    
+    snapshots:
+      enabled: True
+      timestamp: False
+      bounding_box: True
+      retain:
+        default: 14
+    
+    objects:
+      track:
+        - person
+        - car
+        - dog
+        - cat
+      filters:
+        person:
+          min_area: 5000
+          max_area: 100000
+          threshold: 0.7
+    
+    motion:
+      mask:
+        - 0,0,1280,50  # Example: mask top 50 pixels (adjust as needed)
+    
+    zones:
+      entrance:
+        coordinates: 400,720,800,720,800,400,400,400
+        objects:
+          - person
+
+  # Second Pi Zero Camera (copy and modify as needed)
+  pi_camera_bedroom:
+    enabled: True
+    ffmpeg:
+      inputs:
+        - path: rtsp://192.168.1.101:8554/camera  # Different Pi Zero IP
+          roles:
+            - detect
+            - record
+    
+    detect:
+      width: 1280
+      height: 720
+      fps: 15
+    
+    record:
+      enabled: True
+      retain:
+        days: 7
+        mode: motion
+    
+    snapshots:
+      enabled: True
+      retain:
+        default: 14
+    
+    objects:
+      track:
+        - person
+
+  # Add more cameras by copying the pattern above

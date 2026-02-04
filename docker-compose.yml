@@ -1,0 +1,52 @@
+services:
+
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: camera-rtsp-server
+    restart: unless-stopped
+    ports:
+      - "8554:8554"     # RTSP port
+      - "8888:8888"     # WebRTC port
+      - "8889:8889"     # HLS port
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "8554"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - camera-net
+
+  camera-streamer:
+    build: .
+    container_name: camera-streamer
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - /dev/video0:/dev/video0
+    volumes:
+      - /opt/vc:/opt/vc
+    environment:
+      - CAMERA_NAME=${CAMERA_NAME:-pi-camera}
+      - RTSP_SERVER=${RTSP_SERVER:-mediamtx}
+      - RTSP_PORT=${RTSP_PORT:-8554}
+      - RESOLUTION=${RESOLUTION:-1280x720}
+      - FRAMERATE=${FRAMERATE:-15}
+      - BITRATE=${BITRATE:-2000000}
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "stream_camera.py"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      mediamtx:
+        condition: service_healthy
+    networks:
+      - camera-net
+
+networks:
+  camera-net:
+    driver: bridge
