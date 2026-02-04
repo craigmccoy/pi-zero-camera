@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y \
     v4l-utils \
     netcat-openbsd \
     procps \
-    libcamera-apps \
+    rpicam-apps \
     libcamera-tools \
     && rm -rf /var/lib/apt/lists/*
 
