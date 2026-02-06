@@ -30,56 +30,45 @@ check_raspberry_pi() {
 # Function to check camera detection
 check_camera_detected() {
     echo "Checking camera detection..."
-    if command -v vcgencmd &> /dev/null; then
-        CAMERA_STATUS=$(vcgencmd get_camera 2>/dev/null || echo "error")
-        if [[ "$CAMERA_STATUS" == *"detected=1"* ]]; then
-            echo "✓ Camera detected by system"
+    if command -v rpicam-hello &> /dev/null; then
+        CAMERA_LIST=$(rpicam-hello --list-cameras 2>&1 || echo "error")
+        if [[ "$CAMERA_LIST" == *"ov5647"* ]] || [[ "$CAMERA_LIST" == *"Available cameras"* ]]; then
+            echo "✓ Camera detected by rpicam"
             return 0
         else
-            echo "✗ Camera not detected: $CAMERA_STATUS"
+            echo "✗ Camera not detected by rpicam"
+            echo "  Output: $CAMERA_LIST"
             echo "  Please check hardware connection and /boot/firmware/config.txt"
             echo "  See CAMERA_SETUP.md for details"
             return 1
         fi
     else
-        echo "⚠ vcgencmd not available, skipping camera detection check"
-        return 0
+        echo "✗ rpicam-hello not found"
+        echo "  Install with: sudo apt install -y rpicam-apps"
+        return 1
     fi
 }
 
-# Function to check and load V4L2 driver
-check_v4l2_driver() {
-    echo "Checking V4L2 driver..."
+# Function to check rpicam-apps installation
+check_rpicam_apps() {
+    echo "Checking rpicam-apps..."
     
-    # Check if /dev/video0 exists
-    if [ -e /dev/video0 ]; then
-        echo "✓ /dev/video0 exists"
+    if command -v rpicam-vid &> /dev/null; then
+        echo "✓ rpicam-apps installed"
         return 0
     fi
     
-    echo "✗ /dev/video0 not found"
+    echo "✗ rpicam-apps not found"
+    echo "  Installing rpicam-apps..."
     
-    # Try to load the driver
-    echo "  Attempting to load bcm2835-v4l2 driver..."
-    if sudo modprobe bcm2835-v4l2 2>/dev/null; then
-        sleep 2
-        if [ -e /dev/video0 ]; then
-            echo "✓ Driver loaded successfully, /dev/video0 now available"
-            
-            # Make it persistent
-            if ! grep -q "bcm2835-v4l2" /etc/modules 2>/dev/null; then
-                echo "  Adding driver to /etc/modules for persistence..."
-                echo "bcm2835-v4l2" | sudo tee -a /etc/modules > /dev/null
-                echo "✓ Driver will load on boot"
-            fi
-            return 0
-        fi
+    if sudo apt update && sudo apt install -y rpicam-apps; then
+        echo "✓ rpicam-apps installed successfully"
+        return 0
+    else
+        echo "✗ Failed to install rpicam-apps"
+        echo "  Try manually: sudo apt install -y rpicam-apps"
+        return 1
     fi
-    
-    echo "✗ Failed to load V4L2 driver"
-    echo "  You may need to enable legacy camera mode in /boot/firmware/config.txt"
-    echo "  See CAMERA_SETUP.md for instructions"
-    return 1
 }
 
 # Function to check user permissions
@@ -125,8 +114,8 @@ echo "Running pre-deployment checks..."
 echo "----------------------------------------"
 
 check_raspberry_pi || true
+check_rpicam_apps || exit 1
 check_camera_detected || echo "⚠ Camera check failed, but continuing..."
-check_v4l2_driver || echo "⚠ V4L2 driver check failed, but continuing..."
 check_user_permissions || true
 check_docker || exit 1
 
