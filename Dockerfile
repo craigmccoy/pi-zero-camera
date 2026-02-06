@@ -2,12 +2,10 @@ FROM python:3.11-slim-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install only FFmpeg and utilities
+# Install only FFmpeg for RTSP streaming
 # rpicam-apps and libcamera will be mounted from host
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
-    netcat-openbsd \
-    procps \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
