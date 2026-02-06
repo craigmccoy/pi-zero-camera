@@ -10,12 +10,6 @@ services:
       - "8889:8889"     # HLS port
     volumes:
       - ./mediamtx.yml:/mediamtx.yml
-    healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "8554"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
     networks:
       - camera-net
 
@@ -35,15 +29,8 @@ services:
       - RESOLUTION=${RESOLUTION:-1280x720}
       - FRAMERATE=${FRAMERATE:-15}
       - BITRATE=${BITRATE:-2000000}
-    healthcheck:
-      test: ["CMD", "pgrep", "-f", "stream_camera.py"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
     depends_on:
-      mediamtx:
-        condition: service_healthy
+      - mediamtx
     networks:
       - camera-net
 

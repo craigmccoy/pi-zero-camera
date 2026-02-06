@@ -97,11 +97,22 @@ docker compose up -d
 ### 5. Verify Stream
 
 ```bash
-# Check logs
+# Check container status
+docker compose ps
+
+# Check logs for both services
 docker compose logs -f
+
+# Check MediaMTX logs specifically
+docker compose logs mediamtx
+
+# Check camera-streamer logs specifically
+docker compose logs camera-streamer
 
 # Test stream (from another machine)
 ffplay rtsp://<PI_ZERO_IP>:8554/camera
+
+# Or use VLC: Media -> Open Network Stream -> rtsp://<PI_ZERO_IP>:8554/camera
 ```
 
 ## Resolution Presets
