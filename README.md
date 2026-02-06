@@ -1,6 +1,6 @@
 # Raspberry Pi Zero Camera for Frigate
 
-A Docker-based RTSP camera streamer optimized for Raspberry Pi Zero W with OV5647 camera module. Designed for seamless integration with Frigate NVR and Home Assistant.
+A lightweight RTSP camera streamer optimized for Raspberry Pi Zero W with OV5647 camera module. Uses native rpicam-apps and MediaMTX for efficient streaming. Designed for seamless integration with Frigate NVR and Home Assistant.
 
 ## Hardware Requirements
 
@@ -11,12 +11,12 @@ A Docker-based RTSP camera streamer optimized for Raspberry Pi Zero W with OV564
 
 ## Features
 
-- 🐳 **Fully Dockerized** - Easy deployment and replication across multiple cameras
+- 🚀 **Native Performance** - Runs directly on host for maximum efficiency
 - 📹 **RTSP Streaming** - Standard protocol compatible with Frigate and all NVR systems
 - ⚙️ **Multiple Resolution Presets** - Optimized for Pi Zero W performance
 - 🔧 **Configurable** - Easy customization via environment variables
-- 🚀 **Low Latency** - Optimized for real-time streaming
-- 🔄 **Auto-restart** - Resilient to crashes and network issues
+- 💾 **Lightweight** - No Docker overhead, minimal resource usage
+- 🔄 **Systemd Services** - Auto-start on boot, automatic restart on failure
 
 ## Quick Start
 
@@ -24,28 +24,11 @@ A Docker-based RTSP camera streamer optimized for Raspberry Pi Zero W with OV564
 
 Ensure your Raspberry Pi Zero W has:
 - Raspberry Pi OS Lite (Bookworm or newer recommended)
-- Docker and Docker Compose installed
 - Camera module connected and configured
 
 ```bash
 # Update system
 sudo apt update && sudo apt upgrade -y
-
-# Install dependencies (if not already installed)
-sudo apt install -y \
-    git \
-    curl \
-    rpicam-apps
-
-# Install Docker (if not already installed)
-# This script installs Docker Engine with Docker Compose V2 plugin
-# Note: Raspian Trixie does NOT have a Docker package - 2026-02-04
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-sudo usermod -aG docker $USER
-
-# Reboot or log out/in for group changes to take effect
-# sudo reboot
 
 # Enable camera in boot config
 sudo nano /boot/firmware/config.txt
@@ -58,52 +41,44 @@ sudo nano /boot/firmware/config.txt
 sudo reboot
 ```
 
-### 2. Clone/Copy Project to Pi Zero
+### 2. Install Camera Streamer
 
 ```bash
-# Clone project from Github
+# Clone project
 git clone https://github.com/craigmccoy/pi-zero-camera.git
-cd ~/pi-zero-camera
+cd pi-zero-camera
+
+# Run installation script
+chmod +x install.sh
+./install.sh pi-camera-office
 ```
 
-### 3. Configure Camera Settings
+The installer will:
+- Install rpicam-apps, ffmpeg, and MediaMTX
+- Create systemd services
+- Configure camera name
+- Set up auto-start on boot
+
+### 3. Start Services
 
 ```bash
-# Copy environment template
-cp .env.example .env
+# Start MediaMTX RTSP server
+sudo systemctl start mediamtx
 
-# Edit configuration
-nano .env
+# Start camera streamer
+sudo systemctl start camera-streamer
 ```
 
-**Recommended settings for Pi Zero W:**
-```env
-CAMERA_NAME=pi-camera-living-room
-RESOLUTION=1280x720
-FRAMERATE=15
-BITRATE=2000000
-```
-
-### 4. Start the Camera
+### 4. Verify Stream
 
 ```bash
-docker compose up -d
-```
+# Check service status
+sudo systemctl status mediamtx
+sudo systemctl status camera-streamer
 
-### 5. Verify Stream
-
-```bash
-# Check container status
-docker compose ps
-
-# Check logs for both services
-docker compose logs -f
-
-# Check MediaMTX logs specifically
-docker compose logs mediamtx
-
-# Check camera-streamer logs specifically
-docker compose logs camera-streamer
+# View logs
+sudo journalctl -u camera-streamer -f
+sudo journalctl -u mediamtx -f
 
 # Test stream (from another machine)
 ffplay rtsp://<PI_ZERO_IP>:8554/camera
@@ -242,31 +217,24 @@ automation:
 4. Boot new Pi Zero with cloned card
 5. Update `.env` file with new camera name and verify IP
 
-### Method 2: Automated Deployment Script
+### Method 2: Manual Configuration
 
-The included `deploy.sh` script automates deployment with built-in checks:
+If you prefer manual setup:
 
-**Features:**
-- ✓ Verifies camera hardware detection
-- ✓ Checks and loads V4L2 driver automatically
-- ✓ Adds user to `video` group if needed
-- ✓ Validates Docker installation
-- ✓ Creates and configures `.env` file
-- ✓ Provides helpful error messages
-
-**Usage:**
 ```bash
-chmod +x deploy.sh
-./deploy.sh pi-camera-bedroom
-```
+# Copy and edit configuration
+cp .env.example .env
+nano .env
 
-The script will:
-1. Run pre-deployment checks
-2. Auto-fix common issues (load driver, set permissions)
-3. Configure camera name in `.env`
-4. Pull Docker images
-5. Start services
-6. Display connection information
+# Change camera name and settings
+CAMERA_NAME=pi-camera-bedroom
+RESOLUTION=1280x720
+FRAMERATE=15
+BITRATE=2000000
+
+# Restart service to apply changes
+sudo systemctl restart camera-streamer
+```
 
 ## Troubleshooting
 
@@ -301,35 +269,35 @@ rpicam-still -o test.jpg
 ### Stream Not Working
 
 ```bash
-# Check container logs
-docker compose logs camera-streamer
+# Check service status
+sudo systemctl status camera-streamer
+sudo systemctl status mediamtx
 
-# Check MediaMTX logs
-docker compose logs mediamtx
+# Check logs
+sudo journalctl -u camera-streamer -f
+sudo journalctl -u mediamtx -f
 
-# Verify camera works on host
+# Verify camera works
 rpicam-hello --list-cameras
 rpicam-still -o test.jpg
 
-# Rebuild containers if needed
-docker compose down
-docker compose build --no-cache
-docker compose up -d
-
 # Restart services
-docker compose restart
+sudo systemctl restart camera-streamer
+sudo systemctl restart mediamtx
 ```
 
 ### Performance Issues
 
 ```bash
 # Lower resolution in .env
+nano .env
+# Change to:
 RESOLUTION=640x480
 FRAMERATE=15
 BITRATE=1000000
 
-# Restart
-docker compose down && docker compose up -d
+# Restart service
+sudo systemctl restart camera-streamer
 
 # Monitor CPU usage
 htop
@@ -351,10 +319,12 @@ ffprobe rtsp://<PI_IP>:8554/camera
 
 ```bash
 # View logs
-docker compose logs -f camera-streamer
+sudo journalctl -u camera-streamer -f
+sudo journalctl -u mediamtx -f
 
-# Check resource usage
-docker stats
+# Check service status
+sudo systemctl status camera-streamer
+sudo systemctl status mediamtx
 
 # System resources
 htop
@@ -363,25 +333,29 @@ htop
 ### Useful Commands
 
 ```bash
-# Start camera
-docker compose up -d
+# Start services
+sudo systemctl start mediamtx
+sudo systemctl start camera-streamer
 
-# Stop camera
-docker compose down
+# Stop services
+sudo systemctl stop camera-streamer
+sudo systemctl stop mediamtx
 
-# Restart camera
-docker compose restart
+# Restart services
+sudo systemctl restart camera-streamer
+sudo systemctl restart mediamtx
 
-# View logs
-docker compose logs -f
+# Enable auto-start on boot
+sudo systemctl enable mediamtx
+sudo systemctl enable camera-streamer
 
-# Update containers
-docker compose pull
-docker compose up -d
+# Disable auto-start
+sudo systemctl disable camera-streamer
+sudo systemctl disable mediamtx
 
-# Clean up
-docker compose down -v
-docker system prune -a
+# View recent logs
+sudo journalctl -u camera-streamer -n 50
+sudo journalctl -u mediamtx -n 50
 ```
 
 ## Performance Tips
@@ -390,7 +364,7 @@ docker system prune -a
 2. **Keep Pi Zero cool** - Consider heatsink for continuous operation
 3. **Use quality power supply** - Prevents brownouts and crashes
 4. **Optimize resolution** - Start with 720p@15fps, adjust as needed
-5. **Update regularly** - Keep Docker images and OS updated
+5. **Update regularly** - Keep OS and packages updated: `sudo apt update && sudo apt upgrade`
 
 ## Network Configuration
 

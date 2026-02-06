@@ -140,23 +140,26 @@ sudo usermod -aG video $USER
 
 Log out and back in for changes to take effect.
 
-### Problem: Camera works but Docker can't access it
+### Problem: Permission denied accessing camera
 
-Ensure the device is mounted in docker-compose.yml:
-```yaml
-devices:
-  - /dev/video0:/dev/video0
+Ensure your user has access to video devices:
+```bash
+# Check current permissions
+ls -l /dev/video*
+
+# Add user to video group if needed
+sudo usermod -aG video $USER
+
+# Log out and back in for changes to take effect
 ```
-
-And the container runs with `privileged: true`.
 
 ## Camera Specifications (OV5647)
 
 - **Resolution**: 5MP (2592 × 1944 pixels)
 - **Video**: 1080p30, 720p60, 640x480p90
 - **Interface**: CSI (Camera Serial Interface)
-- **V4L2 Output Formats**: MJPEG, YUYV (raw), RGB
-- **Note**: Camera outputs raw video that is encoded to H.264 by FFmpeg for streaming
+- **Encoding**: Hardware H.264 encoding via rpicam-vid
+- **Note**: Camera uses native libcamera stack for optimal performance
 
 ## Recommended Settings for Streaming
 
