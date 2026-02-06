@@ -18,26 +18,10 @@ services:
     container_name: camera-streamer
     restart: unless-stopped
     privileged: true
-    devices:
-      - /dev/video0:/dev/video0
-      - /dev/video10:/dev/video10
-      - /dev/video11:/dev/video11
-      - /dev/video12:/dev/video12
-      - /dev/video13:/dev/video13
-      - /dev/video14:/dev/video14
-      - /dev/video15:/dev/video15
-      - /dev/video16:/dev/video16
-      - /dev/media0:/dev/media0
-      - /dev/media1:/dev/media1
-      - /dev/media2:/dev/media2
-      - /dev/media3:/dev/media3
     volumes:
-      - /opt/vc:/opt/vc
       - /run/udev:/run/udev:ro
       - /usr/share/libcamera:/usr/share/libcamera:ro
       - /usr/bin/rpicam-vid:/usr/bin/rpicam-vid:ro
-      - /usr/bin/rpicam-hello:/usr/bin/rpicam-hello:ro
-      - /usr/bin/rpicam-still:/usr/bin/rpicam-still:ro
       - /usr/lib/arm-linux-gnueabihf:/usr/lib/arm-linux-gnueabihf:ro
       - /lib/arm-linux-gnueabihf:/lib/arm-linux-gnueabihf:ro
     environment:
