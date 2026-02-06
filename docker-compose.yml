@@ -35,6 +35,11 @@ services:
       - /opt/vc:/opt/vc
       - /run/udev:/run/udev:ro
       - /usr/share/libcamera:/usr/share/libcamera:ro
+      - /usr/bin/rpicam-vid:/usr/bin/rpicam-vid:ro
+      - /usr/bin/rpicam-hello:/usr/bin/rpicam-hello:ro
+      - /usr/bin/rpicam-still:/usr/bin/rpicam-still:ro
+      - /usr/lib/arm-linux-gnueabihf:/usr/lib/arm-linux-gnueabihf:ro
+      - /lib/arm-linux-gnueabihf:/lib/arm-linux-gnueabihf:ro
     environment:
       - CAMERA_NAME=${CAMERA_NAME:-pi-camera}
       - RTSP_SERVER=${RTSP_SERVER:-mediamtx}
