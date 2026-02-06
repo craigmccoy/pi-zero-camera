@@ -61,10 +61,35 @@ class CameraStreamer:
     
     def detect_camera_method(self):
         """Detect which camera interface to use"""
+        # Check for rpicam-vid first (modern libcamera stack)
+        try:
+            result = subprocess.run(
+                ['rpicam-vid', '--version'],
+                capture_output=True,
+                timeout=2
+            )
+            if result.returncode == 0:
+                return 'rpicam'
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            pass
+        
+        # Check for libcamera-vid (older name)
+        try:
+            result = subprocess.run(
+                ['libcamera-vid', '--version'],
+                capture_output=True,
+                timeout=2
+            )
+            if result.returncode == 0:
+                return 'libcamera'
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            pass
+        
+        # Fallback to V4L2
         if Path('/dev/video0').exists():
             return 'v4l2'
-        else:
-            raise RuntimeError("No camera device found at /dev/video0")
+        
+        raise RuntimeError("No camera interface found (tried rpicam-vid, libcamera-vid, /dev/video0)")
     
     def detect_camera_format(self):
         """Detect best available camera format"""
@@ -120,8 +145,32 @@ class CameraStreamer:
         ]
         return cmd
     
+    def build_rpicam_command(self):
+        """Build rpicam-vid command for streaming directly to RTSP"""
+        cmd = [
+            'rpicam-vid',
+            '--width', str(self.width),
+            '--height', str(self.height),
+            '--framerate', str(self.framerate),
+            '--bitrate', str(self.bitrate),
+            '--codec', 'h264',
+            '--inline',
+            '--flush',
+            '-t', '0',
+            '-o', '-',
+            '|', 'ffmpeg',
+            '-re',
+            '-f', 'h264',
+            '-i', 'pipe:0',
+            '-c:v', 'copy',
+            '-f', 'rtsp',
+            '-rtsp_transport', 'tcp',
+            self.rtsp_url
+        ]
+        return cmd
+    
     def build_libcamera_command(self):
-        """Build libcamera-vid command for streaming"""
+        """Build libcamera-vid command for streaming directly to RTSP"""
         cmd = [
             'libcamera-vid',
             '--width', str(self.width),
@@ -130,10 +179,11 @@ class CameraStreamer:
             '--bitrate', str(self.bitrate),
             '--codec', 'h264',
             '--inline',
-            '--listen',
+            '--flush',
             '-t', '0',
             '-o', '-',
             '|', 'ffmpeg',
+            '-re',
             '-f', 'h264',
             '-i', 'pipe:0',
             '-c:v', 'copy',
@@ -141,7 +191,7 @@ class CameraStreamer:
             '-rtsp_transport', 'tcp',
             self.rtsp_url
         ]
-        return ' '.join(cmd)
+        return cmd
     
     def start_stream(self):
         """Start the camera stream"""
@@ -155,12 +205,25 @@ class CameraStreamer:
         camera_method = self.detect_camera_method()
         print(f"Using camera method: {camera_method}")
         
-        # Detect best format for camera
-        self.camera_format = self.detect_camera_format()
-        
-        cmd = self.build_ffmpeg_command()
-        print(f"Command: {' '.join(cmd)}")
-        self.process = subprocess.Popen(cmd, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        # Build command based on detected method
+        if camera_method == 'rpicam':
+            cmd = self.build_rpicam_command()
+            # Use shell=True for pipe command
+            cmd_str = ' '.join(cmd)
+            print(f"Command: {cmd_str}")
+            self.process = subprocess.Popen(cmd_str, shell=True)
+        elif camera_method == 'libcamera':
+            cmd = self.build_libcamera_command()
+            # Use shell=True for pipe command
+            cmd_str = ' '.join(cmd)
+            print(f"Command: {cmd_str}")
+            self.process = subprocess.Popen(cmd_str, shell=True)
+        else:
+            # V4L2 fallback
+            self.camera_format = self.detect_camera_format()
+            cmd = self.build_ffmpeg_command()
+            print(f"Command: {' '.join(cmd)}")
+            self.process = subprocess.Popen(cmd)
         
         print(f"\n{'='*60}")
         print(f"Camera stream is running!")
@@ -169,7 +232,10 @@ class CameraStreamer:
         print(f"{'='*60}\n")
         
         try:
-            self.process.wait()
+            returncode = self.process.wait()
+            if returncode != 0:
+                print(f"\nFFmpeg exited with code {returncode}")
+                sys.exit(returncode)
         except KeyboardInterrupt:
             print("\nInterrupted by user")
         finally:

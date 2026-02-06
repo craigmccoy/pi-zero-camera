@@ -20,8 +20,21 @@ services:
     privileged: true
     devices:
       - /dev/video0:/dev/video0
+      - /dev/video10:/dev/video10
+      - /dev/video11:/dev/video11
+      - /dev/video12:/dev/video12
+      - /dev/video13:/dev/video13
+      - /dev/video14:/dev/video14
+      - /dev/video15:/dev/video15
+      - /dev/video16:/dev/video16
+      - /dev/media0:/dev/media0
+      - /dev/media1:/dev/media1
+      - /dev/media2:/dev/media2
+      - /dev/media3:/dev/media3
     volumes:
       - /opt/vc:/opt/vc
+      - /run/udev:/run/udev:ro
+      - /usr/share/libcamera:/usr/share/libcamera:ro
     environment:
       - CAMERA_NAME=${CAMERA_NAME:-pi-camera}
       - RTSP_SERVER=${RTSP_SERVER:-mediamtx}

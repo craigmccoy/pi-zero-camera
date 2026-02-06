@@ -15,16 +15,16 @@ This guide helps you configure the OV5647 camera module to work with the Docker-
 
 ### For Raspberry Pi OS Bookworm (Recommended)
 
-The newer Raspberry Pi OS uses `libcamera` by default, but Docker needs the legacy V4L2 interface.
+The newer Raspberry Pi OS uses `libcamera`/`rpicam` by default. This setup uses the modern camera stack.
 
-#### Enable Legacy Camera Mode
+#### Enable Camera
 
 Edit the boot configuration:
 ```bash
 sudo nano /boot/firmware/config.txt
 ```
 
-Add or modify these lines:
+Ensure these lines are present:
 ```
 # Enable camera
 camera_auto_detect=1
@@ -34,14 +34,12 @@ gpu_mem=128
 
 Save and exit (Ctrl+X, Y, Enter).
 
-#### Load V4L2 Driver
+#### Install rpicam-apps
 
 ```bash
-# Load the driver
-sudo modprobe bcm2835-v4l2
-
-# Make it load on boot
-echo "bcm2835-v4l2" | sudo tee -a /etc/modules
+# Install camera tools
+sudo apt update
+sudo apt install -y rpicam-apps
 ```
 
 #### Reboot
@@ -62,39 +60,41 @@ Reboot when prompted.
 
 After reboot, run these commands to verify:
 
-### 1. Check Camera Detection
+### 1. List Available Cameras
 ```bash
-vcgencmd get_camera
+rpicam-hello --list-cameras
 ```
-Expected output: `supported=1 detected=1`
+Expected output:
+```
+Available cameras
+-----------------
+0 : ov5647 [2592x1944 10-bit GBRG] (/base/soc/i2c0mux/i2c@1/ov5647@36)
+    Modes: 'SGBRG10_CSI2P' : 640x480, 1296x972, 1920x1080, 2592x1944
+```
 
-### 2. Check V4L2 Device
+### 2. Test Camera Preview (if display connected)
 ```bash
-ls -l /dev/video0
+rpicam-hello --timeout 5000
 ```
-Expected output: `crw-rw---- 1 root video ...`
+Should show camera preview for 5 seconds.
 
-### 3. List Camera Capabilities
+### 3. Capture Test Image
 ```bash
-v4l2-ctl --list-devices
+rpicam-still -o test.jpg
 ```
-Should show: `mmal service 16.1 (platform:bcm2835-v4l2)`
+Should create `test.jpg` in current directory.
 
-### 4. Check Supported Formats
+### 4. Test Video Capture
 ```bash
-v4l2-ctl --list-formats-ext
+rpicam-vid -t 5000 -o test.h264
 ```
-Should list H.264, MJPEG, and other formats.
+Should create 5-second H.264 video file.
 
-### 5. Test Camera Capture
+### 5. Check Device Files
 ```bash
-# Capture a test image
-v4l2-ctl --set-fmt-video=width=1280,height=720,pixelformat=MJPG
-v4l2-ctl --stream-mmap --stream-to=/tmp/test.jpg --stream-count=1
-
-# View the file size (should be > 0)
-ls -lh /tmp/test.jpg
+ls -l /dev/video* /dev/media*
 ```
+Should show multiple video and media devices.
 
 ## Troubleshooting
 

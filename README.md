@@ -35,6 +35,7 @@ sudo apt update && sudo apt upgrade -y
 sudo apt install -y \
     git \
     curl \
+    rpicam-apps
 
 # Install Docker (if not already installed)
 # This script installs Docker Engine with Docker Compose V2 plugin
@@ -46,17 +47,12 @@ sudo usermod -aG docker $USER
 # Reboot or log out/in for group changes to take effect
 # sudo reboot
 
-# Enable camera legacy mode (required for v4l2 access)
-# Edit /boot/firmware/config.txt and add:
+# Enable camera in boot config
 sudo nano /boot/firmware/config.txt
-# Add this line:
+# Ensure these lines are present:
 # camera_auto_detect=1
 # start_x=1
 # gpu_mem=128
-
-# OR use raspi-config (on older Pi OS versions)
-sudo raspi-config
-# Navigate to: Interface Options -> Legacy Camera -> Enable
 
 # Reboot after camera configuration
 sudo reboot
@@ -277,33 +273,29 @@ The script will:
 ### Camera Not Detected
 
 ```bash
-# Check if camera is detected by the system
-vcgencmd get_camera
-# Should show: supported=1 detected=1
+# Check if camera is detected by rpicam
+rpicam-hello --list-cameras
+# Should show: 0 : ov5647 [2592x1944 10-bit GBRG]
 
-# Check if v4l2 device exists
-ls -l /dev/video0
-# Should show: crw-rw---- 1 root video ...
-
-# If /dev/video0 doesn't exist, enable legacy camera mode
+# If camera not detected, check boot config
 sudo nano /boot/firmware/config.txt
-# Add these lines:
+# Ensure these lines are present:
 # camera_auto_detect=1
 # start_x=1
 # gpu_mem=128
 
-# Load v4l2 driver manually (if needed)
-sudo modprobe bcm2835-v4l2
-
-# Make it permanent by adding to /etc/modules
-echo "bcm2835-v4l2" | sudo tee -a /etc/modules
-
 # Reboot
 sudo reboot
 
-# Test camera with v4l2
-v4l2-ctl --list-devices
-v4l2-ctl --list-formats-ext
+# Test camera capture
+rpicam-still -o test.jpg
+# Should create test.jpg image
+
+# Check physical connection if still not working:
+# - Power off: sudo shutdown -h now
+# - Reseat ribbon cable (contacts facing PCB)
+# - Ensure cable is fully inserted
+# - Power back on
 ```
 
 ### Stream Not Working
@@ -315,8 +307,14 @@ docker compose logs camera-streamer
 # Check MediaMTX logs
 docker compose logs mediamtx
 
-# Test camera directly
-libcamera-hello --list-cameras
+# Verify camera works on host
+rpicam-hello --list-cameras
+rpicam-still -o test.jpg
+
+# Rebuild containers if needed
+docker compose down
+docker compose build --no-cache
+docker compose up -d
 
 # Restart services
 docker compose restart
