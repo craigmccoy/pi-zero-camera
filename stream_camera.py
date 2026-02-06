@@ -66,16 +66,54 @@ class CameraStreamer:
         else:
             raise RuntimeError("No camera device found at /dev/video0")
     
+    def detect_camera_format(self):
+        """Detect best available camera format"""
+        try:
+            # Check available formats using v4l2-ctl
+            result = subprocess.run(
+                ['v4l2-ctl', '--list-formats-ext', '-d', '/dev/video0'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            
+            formats_output = result.stdout.lower()
+            
+            # Prefer MJPEG for better performance on Pi Zero
+            if 'mjpeg' in formats_output or 'motion-jpeg' in formats_output:
+                print("Using MJPEG format (efficient)")
+                return 'mjpeg'
+            elif 'yuyv' in formats_output:
+                print("Using YUYV format (fallback)")
+                return 'yuyv'
+            else:
+                print("Warning: No preferred format found, trying MJPEG")
+                return 'mjpeg'
+        except Exception as e:
+            print(f"Warning: Could not detect formats ({e}), defaulting to MJPEG")
+            return 'mjpeg'
+    
     def build_ffmpeg_command(self):
         """Build FFmpeg command for streaming with OV5647 camera"""
+        # OV5647 outputs YUYV or MJPEG, not raw H.264
+        # We need to encode to H.264 for streaming
+        input_format = getattr(self, 'camera_format', 'mjpeg')
+        
         cmd = [
             'ffmpeg',
             '-f', 'v4l2',
-            '-input_format', 'h264',
+            '-input_format', input_format,
             '-video_size', self.resolution,
             '-framerate', str(self.framerate),
             '-i', '/dev/video0',
-            '-c:v', 'copy',
+            '-c:v', 'libx264',  # Encode to H.264
+            '-preset', 'ultrafast',  # Fast encoding for Pi Zero
+            '-tune', 'zerolatency',  # Low latency
+            '-b:v', str(self.bitrate),
+            '-maxrate', str(self.bitrate),
+            '-bufsize', str(self.bitrate * 2),
+            '-pix_fmt', 'yuv420p',
+            '-g', str(self.framerate * 2),  # Keyframe every 2 seconds
             '-f', 'rtsp',
             '-rtsp_transport', 'tcp',
             self.rtsp_url
@@ -117,9 +155,12 @@ class CameraStreamer:
         camera_method = self.detect_camera_method()
         print(f"Using camera method: {camera_method}")
         
+        # Detect best format for camera
+        self.camera_format = self.detect_camera_format()
+        
         cmd = self.build_ffmpeg_command()
         print(f"Command: {' '.join(cmd)}")
-        self.process = subprocess.Popen(cmd)
+        self.process = subprocess.Popen(cmd, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         
         print(f"\n{'='*60}")
         print(f"Camera stream is running!")

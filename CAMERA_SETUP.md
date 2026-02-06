@@ -155,7 +155,8 @@ And the container runs with `privileged: true`.
 - **Resolution**: 5MP (2592 × 1944 pixels)
 - **Video**: 1080p30, 720p60, 640x480p90
 - **Interface**: CSI (Camera Serial Interface)
-- **Supported formats**: H.264, MJPEG, YUV420, RGB
+- **V4L2 Output Formats**: MJPEG, YUYV (raw), RGB
+- **Note**: Camera outputs raw video that is encoded to H.264 by FFmpeg for streaming
 
 ## Recommended Settings for Streaming
 
