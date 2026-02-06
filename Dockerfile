@@ -2,20 +2,13 @@ FROM python:3.11-slim-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install dependencies and add RPi repository
+# Install only the tools needed inside the container
+# Camera access is via /dev/video0 device mount, not via libcamera/rpicam
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget \
-    gnupg \
-    && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 82B129927FA3303E \
-    && echo "deb http://archive.raspberrypi.org/debian/ bookworm main" | tee /etc/apt/sources.list.d/raspberrypi.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends \
     ffmpeg \
     v4l-utils \
     netcat-openbsd \
     procps \
-    rpicam-apps \
-    libcamera-tools \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

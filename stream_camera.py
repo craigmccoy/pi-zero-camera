@@ -63,10 +63,8 @@ class CameraStreamer:
         """Detect which camera interface to use"""
         if Path('/dev/video0').exists():
             return 'v4l2'
-        elif Path('/usr/bin/libcamera-vid').exists():
-            return 'libcamera'
         else:
-            raise RuntimeError("No camera interface found (v4l2 or libcamera)")
+            raise RuntimeError("No camera device found at /dev/video0")
     
     def build_ffmpeg_command(self):
         """Build FFmpeg command for streaming with OV5647 camera"""
@@ -119,14 +117,9 @@ class CameraStreamer:
         camera_method = self.detect_camera_method()
         print(f"Using camera method: {camera_method}")
         
-        if camera_method == 'v4l2':
-            cmd = self.build_ffmpeg_command()
-            print(f"Command: {' '.join(cmd)}")
-            self.process = subprocess.Popen(cmd)
-        else:
-            cmd = self.build_libcamera_command()
-            print(f"Command: {cmd}")
-            self.process = subprocess.Popen(cmd, shell=True)
+        cmd = self.build_ffmpeg_command()
+        print(f"Command: {' '.join(cmd)}")
+        self.process = subprocess.Popen(cmd)
         
         print(f"\n{'='*60}")
         print(f"Camera stream is running!")

@@ -23,13 +23,22 @@ A Docker-based RTSP camera streamer optimized for Raspberry Pi Zero W with OV564
 ### 1. Prerequisites on Pi Zero W
 
 Ensure your Raspberry Pi Zero W has:
-- Raspberry Pi OS Lite (Bullseye or newer)
+- Raspberry Pi OS Lite (Bookworm or newer recommended)
 - Docker and Docker Compose installed
-- Camera module enabled
+- Camera module connected and configured
 
 ```bash
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install dependencies (if not already installed)
+sudo apt install -y \
+    git \
+    curl \
+
 # Install Docker (if not already installed)
 # This script installs Docker Engine with Docker Compose V2 plugin
+# Note: Raspian Trixie does NOT have a Docker package - 2026-02-04
 curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
 sudo usermod -aG docker $USER
@@ -37,19 +46,28 @@ sudo usermod -aG docker $USER
 # Reboot or log out/in for group changes to take effect
 # sudo reboot
 
-# Enable camera
+# Enable camera legacy mode (required for v4l2 access)
+# Edit /boot/firmware/config.txt and add:
+sudo nano /boot/firmware/config.txt
+# Add this line:
+# camera_auto_detect=1
+# start_x=1
+# gpu_mem=128
+
+# OR use raspi-config (on older Pi OS versions)
 sudo raspi-config
-# Navigate to: Interface Options -> Camera -> Enable
+# Navigate to: Interface Options -> Legacy Camera -> Enable
+
+# Reboot after camera configuration
+sudo reboot
 ```
 
 ### 2. Clone/Copy Project to Pi Zero
 
 ```bash
-# Create project directory
-mkdir -p ~/pi-camera
-cd ~/pi-camera
-
-# Copy all files from this project to ~/pi-camera/
+# Clone project from Github
+git clone https://github.com/craigmccoy/pi-zero-camera.git
+cd ~/pi-zero-camera
 ```
 
 ### 3. Configure Camera Settings
@@ -219,48 +237,62 @@ automation:
 
 ### Method 2: Automated Deployment Script
 
-Create `deploy.sh`:
-```bash
-#!/bin/bash
-# Run this on each new Pi Zero
+The included `deploy.sh` script automates deployment with built-in checks:
 
-CAMERA_NAME=$1
-if [ -z "$CAMERA_NAME" ]; then
-    echo "Usage: ./deploy.sh <camera-name>"
-    exit 1
-fi
+**Features:**
+- ✓ Verifies camera hardware detection
+- ✓ Checks and loads V4L2 driver automatically
+- ✓ Adds user to `video` group if needed
+- ✓ Validates Docker installation
+- ✓ Creates and configures `.env` file
+- ✓ Provides helpful error messages
 
-# Update .env
-sed -i "s/CAMERA_NAME=.*/CAMERA_NAME=$CAMERA_NAME/" .env
-
-# Start services
-docker compose up -d
-
-echo "Camera $CAMERA_NAME deployed!"
-echo "Access at: rtsp://$(hostname -I | awk '{print $1}'):8554/camera"
-```
-
-Usage:
+**Usage:**
 ```bash
 chmod +x deploy.sh
 ./deploy.sh pi-camera-bedroom
 ```
+
+The script will:
+1. Run pre-deployment checks
+2. Auto-fix common issues (load driver, set permissions)
+3. Configure camera name in `.env`
+4. Pull Docker images
+5. Start services
+6. Display connection information
 
 ## Troubleshooting
 
 ### Camera Not Detected
 
 ```bash
-# Check if camera is detected
+# Check if camera is detected by the system
 vcgencmd get_camera
-
 # Should show: supported=1 detected=1
 
-# Check video device
+# Check if v4l2 device exists
 ls -l /dev/video0
+# Should show: crw-rw---- 1 root video ...
 
-# Enable camera if needed
-sudo raspi-config
+# If /dev/video0 doesn't exist, enable legacy camera mode
+sudo nano /boot/firmware/config.txt
+# Add these lines:
+# camera_auto_detect=1
+# start_x=1
+# gpu_mem=128
+
+# Load v4l2 driver manually (if needed)
+sudo modprobe bcm2835-v4l2
+
+# Make it permanent by adding to /etc/modules
+echo "bcm2835-v4l2" | sudo tee -a /etc/modules
+
+# Reboot
+sudo reboot
+
+# Test camera with v4l2
+v4l2-ctl --list-devices
+v4l2-ctl --list-formats-ext
 ```
 
 ### Stream Not Working
